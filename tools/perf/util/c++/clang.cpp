@@ -35,9 +35,16 @@ static std::unique_ptr<llvm::LLVMContext> LLVMCtx;
 
 using namespace clang;
 
+static vfs::InMemoryFileSystem *
+buildVFS(StringRef& Name, StringRef& Content)
+{
+	vfs::InMemoryFileSystem *VFS = new vfs::InMemoryFileSystem(true);
+	VFS->addFile(Twine(Name), 0, llvm::MemoryBuffer::getMemBuffer(Content));
+	return VFS;
+}
+
 static CompilerInvocation *
-createCompilerInvocation(llvm::opt::ArgStringList CFlags, StringRef& Path,
-			 DiagnosticsEngine& Diags)
+createCompilerInvocation(StringRef& Path, DiagnosticsEngine& Diags)
 {
 	llvm::opt::ArgStringList CCArgs {
 		"-cc1",
@@ -59,31 +66,22 @@ createCompilerInvocation(llvm::opt::ArgStringList CFlags, StringRef& Path,
 
 	FrontendOptions& Opts = CI->getFrontendOpts();
 	Opts.Inputs.clear();
-	Opts.Inputs.emplace_back(Path,
-			FrontendOptions::getInputKindForExtension("c"));
+	Opts.Inputs.emplace_back(Path, IK_C);
 	return CI;
 }
 
-static std::unique_ptr<llvm::Module>
-getModuleFromSource(llvm::opt::ArgStringList CFlags,
-		    StringRef Path, IntrusiveRefCntPtr<vfs::FileSystem> VFS)
+std::unique_ptr<llvm::Module>
+getModuleFromSource(StringRef Name, StringRef Content)
 {
 	CompilerInstance Clang;
 	Clang.createDiagnostics();
 
+	IntrusiveRefCntPtr<vfs::FileSystem> VFS = buildVFS(Name, Content);
 	Clang.setVirtualFileSystem(&*VFS);
 
-#if CLANG_VERSION_MAJOR < 4
 	IntrusiveRefCntPtr<CompilerInvocation> CI =
-		createCompilerInvocation(std::move(CFlags), Path,
-					 Clang.getDiagnostics());
+		createCompilerInvocation(Name, Clang.getDiagnostics());
 	Clang.setInvocation(&*CI);
-#else
-	std::shared_ptr<CompilerInvocation> CI(
-		createCompilerInvocation(std::move(CFlags), Path,
-					 Clang.getDiagnostics()));
-	Clang.setInvocation(CI);
-#endif
 
 	std::unique_ptr<CodeGenAction> Act(new EmitLLVMOnlyAction(&*LLVMCtx));
 	if (!Clang.ExecuteAction(*Act))
