@@ -13,15 +13,7 @@ namespace perf {
 using namespace llvm;
 
 std::unique_ptr<Module>
-getModuleFromSource(opt::ArgStringList CFlags,
-		    StringRef Name, StringRef Content);
-
-std::unique_ptr<Module>
-getModuleFromSource(opt::ArgStringList CFlags,
-		    StringRef Path);
-
-std::unique_ptr<llvm::SmallVectorImpl<char>>
-getBPFObjectFromModule(llvm::Module *Module);
+getModuleFromSource(StringRef Name, StringRef Content);
 
 }
 #endif
