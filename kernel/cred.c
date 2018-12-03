@@ -304,7 +304,7 @@ const struct cred *get_task_cred(struct task_struct *task)
 #ifdef CONFIG_HKIP_PROTECT_CRED
 	} while (!atomic_inc_not_zero(((struct cred *)cred)->usage));
 #else
-	} while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
+	} while (!get_cred_rcu(cred));
 #endif
 
 	rcu_read_unlock();
