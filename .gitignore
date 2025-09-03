@@ -128,3 +128,7 @@ kernel/configs/android-*.cfg
 
 # Object directory
 out/
+
+# Kali Nethunter
+/*kali*
+/*nethunter*
