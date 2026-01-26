@@ -12,16 +12,16 @@ else
 	echo "No Config,good."
 fi
 
-# Declare path export
-export PATH=$PATH:$(pwd)/../Compiler/Google/GCC64/bin:$(pwd)/../Compiler/Google/Clang/clang-r353983c/bin
-
 # Declare CLANG et LD_LIBRARY
-export CLANG_PREBUILTS_PATH=$(pwd)/../Compiler/Google/Clang/clang-r353983c/
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/../Compiler/Google/Clang/clang-r353983c/lib64/
+export CLANG_PREBUILTS_PATH=/home/trijal/Builds/linux-x86-f8901db697a294e418813287043562caa29b4614-clang-r353983c/
+export GCC_PREBUILTS_PATH=/home/trijal/Builds/android_prebuilts_gcc_linux-x86_aarch64_aarch64-linux-android-4.9-lineage-19.1/
 
-export CROSS_COMPILE=aarch64-linux-android-
+export CROSS_COMPILE=$GCC_PREBUILTS_PATH/bin/aarch64-linux-android-
 export GCC_COLORS=auto
 export ARCH=arm64
+
+export PATH=$CLANG_PREBUILTS_PATH/bin/:$GCC_PREBUILTS_PATH/bin/:$PATH
+export LD_LIBRARY_PATH=$CLANG_PREBUILTS_PATH/lib64/:$GCC_PREBUILTS_PATH/lib64/:$LD_LIBRARY_PATH
 
 rm -rf cp out/arch/arm64/boot/Image.gz
 
