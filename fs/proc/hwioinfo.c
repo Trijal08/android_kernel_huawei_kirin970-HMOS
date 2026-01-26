@@ -50,11 +50,11 @@ static void show_val(struct seq_file *m, const char *s, unsigned long num)
 	static const char blanks[7] = {' ', ' ', ' ', ' ', ' ', ' ', ' '};  // 7 keep consistent with block io info
 	int len;
 
-#if (KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE)
+// #if (KERNEL_VERSION(4, 19, 0) <= LINUX_VERSION_CODE)
 	len = num_to_str(v, sizeof(v), num, 0);
-#else
-	len = num_to_str(v, sizeof(v), num);
-#endif
+// #else
+// 	len = num_to_str(v, sizeof(v), num);
+// #endif
 
 	seq_write(m, s, 16);  // 16 keep consistent with block io info
 
