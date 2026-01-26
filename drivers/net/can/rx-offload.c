@@ -220,7 +220,7 @@ int can_rx_offload_irq_queue_err_skb(struct can_rx_offload *offload, struct sk_b
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(can_rx_offload_irq_queue_err_skb);
+EXPORT_SYMBOL_GPL(can_rx_offload_queue_tail);
 
 static int can_rx_offload_init_queue(struct net_device *dev, struct can_rx_offload *offload, unsigned int weight)
 {
