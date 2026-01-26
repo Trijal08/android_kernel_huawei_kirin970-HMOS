@@ -30,7 +30,7 @@ echo "***Building kernel...***"
 start_time=$(date +%Y.%m.%d-%I_%M)
 start_time_sum=$(date +%s)
 
-make ARCH=arm64 O=out CC="ccache clang" merge_kirin970_defconfig
+make ARCH=arm64 O=out CC="ccache clang" merge_kirin970_defconfig ksun_sus.config
 make ARCH=arm64 O=out CC="ccache clang" -j$(nproc --all)
 
 end_time_sum=$(date +%s)
