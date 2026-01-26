@@ -2650,20 +2650,6 @@ handle_err:
 	return err;
 }
 
-static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
-				struct task_struct *argowner)
-{
-	struct futex_pi_state *pi_state = q->pi_state;
-	int ret;
-
-	lockdep_assert_held(q->lock_ptr);
-
-	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
-	ret = __fixup_pi_state_owner(uaddr, q, argowner);
-	raw_spin_unlock_irq(&pi_state->pi_mutex.wait_lock);
-	return ret;
-}
-
 static long futex_wait_restart(struct restart_block *restart);
 
 /**
