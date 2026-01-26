@@ -314,9 +314,9 @@ static int policydb_init(struct policydb *p)
 		goto out;
 	}
 
-	ebitmap_init(&p->filename_trans_ttypes, false);
-	ebitmap_init(&p->policycaps, false);
-	ebitmap_init(&p->permissive_map, false);
+	ebitmap_init(&p->filename_trans_ttypes);
+	ebitmap_init(&p->policycaps);
+	ebitmap_init(&p->permissive_map);
 
 	return 0;
 out:
@@ -730,7 +730,8 @@ static int sens_destroy(void *key, void *datum, void *p)
 	kfree(key);
 	if (datum) {
 		levdatum = datum;
-		ebitmap_destroy(&levdatum->level->cat);
+		if (levdatum->level)
+			ebitmap_destroy(&levdatum->level->cat);
 		kfree(levdatum->level);
 	}
 	kfree(datum);
@@ -1021,19 +1022,19 @@ static int mls_read_range_helper(struct mls_range *r, void *fp)
 	else
 		r->level[1].sens = r->level[0].sens;
 
-	rc = ebitmap_read(&r->level[0].cat, fp, false);
+	rc = ebitmap_read(&r->level[0].cat, fp);
 	if (rc) {
 		printk(KERN_ERR "SELinux: mls:  error reading low categories\n");
 		goto out;
 	}
 	if (items > 1) {
-		rc = ebitmap_read(&r->level[1].cat, fp, false);
+		rc = ebitmap_read(&r->level[1].cat, fp);
 		if (rc) {
 			printk(KERN_ERR "SELinux: mls:  error reading high categories\n");
 			goto bad_high;
 		}
 	} else {
-		rc = ebitmap_cpy(&r->level[1].cat, &r->level[0].cat, false);
+		rc = ebitmap_cpy(&r->level[1].cat, &r->level[0].cat);
 		if (rc) {
 			printk(KERN_ERR "SELinux: mls:  out of memory\n");
 			goto bad_high;
@@ -1099,7 +1100,7 @@ static int str_read(char **strp, gfp_t flags, void *fp, u32 len)
 	if ((len == 0) || (len == (u32)-1))
 		return -EINVAL;
 
-	str = kmalloc(len + 1, flags);
+	str = kmalloc(len + 1, flags | __GFP_NOWARN);
 	if (!str)
 		return -ENOMEM;
 
@@ -1193,8 +1194,8 @@ bad:
 
 static void type_set_init(struct type_set *t)
 {
-	ebitmap_init(&t->types, false);
-	ebitmap_init(&t->negset, false);
+	ebitmap_init(&t->types);
+	ebitmap_init(&t->negset);
 }
 
 static int type_set_read(struct type_set *t, void *fp)
@@ -1202,9 +1203,9 @@ static int type_set_read(struct type_set *t, void *fp)
 	__le32 buf[1];
 	int rc;
 
-	if (ebitmap_read(&t->types, fp, false))
+	if (ebitmap_read(&t->types, fp))
 		return -EINVAL;
-	if (ebitmap_read(&t->negset, fp, false))
+	if (ebitmap_read(&t->negset, fp))
 		return -EINVAL;
 
 	rc = next_entry(buf, fp, sizeof(u32));
@@ -1283,7 +1284,7 @@ static int read_cons_helper(struct policydb *p,
 				if (depth == (CEXPR_MAXDEPTH - 1))
 					return -EINVAL;
 				depth++;
-				rc = ebitmap_read(&e->names, fp, false);
+				rc = ebitmap_read(&e->names, fp);
 				if (rc)
 					return rc;
 				if (p->policyvers >=
@@ -1433,11 +1434,11 @@ static int role_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = ebitmap_read(&role->dominates, fp, false);
+	rc = ebitmap_read(&role->dominates, fp);
 	if (rc)
 		goto bad;
 
-	rc = ebitmap_read(&role->types, fp, false);
+	rc = ebitmap_read(&role->types, fp);
 	if (rc)
 		goto bad;
 
@@ -1527,7 +1528,7 @@ static int mls_read_level(struct mls_level *lp, void *fp)
 	}
 	lp->sens = le32_to_cpu(buf[0]);
 
-	rc = ebitmap_read(&lp->cat, fp, false);
+	rc = ebitmap_read(&lp->cat, fp);
 	if (rc) {
 		printk(KERN_ERR "SELinux: mls:  error reading level categories\n");
 		return rc;
@@ -1563,7 +1564,7 @@ static int user_read(struct policydb *p, struct hashtab *h, void *fp)
 	if (rc)
 		goto bad;
 
-	rc = ebitmap_read(&usrdatum->roles, fp, false);
+	rc = ebitmap_read(&usrdatum->roles, fp);
 	if (rc)
 		goto bad;
 
@@ -2107,6 +2108,7 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 {
 	int i, j, rc;
 	u32 nel, len;
+	__be64 prefixbuf[1];
 	__le32 buf[3];
 	struct ocontext *l, *c;
 	u32 nodebuf[8];
@@ -2216,21 +2218,30 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 					goto out;
 				break;
 			}
-			case OCON_IBPKEY:
-				rc = next_entry(nodebuf, fp, sizeof(u32) * 4);
+			case OCON_IBPKEY: {
+				u32 pkey_lo, pkey_hi;
+
+				rc = next_entry(prefixbuf, fp, sizeof(u64));
 				if (rc)
 					goto out;
 
-				c->u.ibpkey.subnet_prefix = be64_to_cpu(*((__be64 *)nodebuf));
+				/* we need to have subnet_prefix in CPU order */
+				c->u.ibpkey.subnet_prefix = be64_to_cpu(prefixbuf[0]);
 
-				if (nodebuf[2] > 0xffff ||
-				    nodebuf[3] > 0xffff) {
+				rc = next_entry(buf, fp, sizeof(u32) * 2);
+				if (rc)
+					goto out;
+
+				pkey_lo = le32_to_cpu(buf[0]);
+				pkey_hi = le32_to_cpu(buf[1]);
+
+				if (pkey_lo > U16_MAX || pkey_hi > U16_MAX) {
 					rc = -EINVAL;
 					goto out;
 				}
 
-				c->u.ibpkey.low_pkey = le32_to_cpu(nodebuf[2]);
-				c->u.ibpkey.high_pkey = le32_to_cpu(nodebuf[3]);
+				c->u.ibpkey.low_pkey  = pkey_lo;
+				c->u.ibpkey.high_pkey = pkey_hi;
 
 				rc = context_read_and_validate(&c->context[0],
 							       p,
@@ -2238,7 +2249,10 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 				break;
-			case OCON_IBENDPORT:
+			}
+			case OCON_IBENDPORT: {
+				u32 port;
+
 				rc = next_entry(buf, fp, sizeof(u32) * 2);
 				if (rc)
 					goto out;
@@ -2248,12 +2262,13 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 
-				if (buf[1] > 0xff || buf[1] == 0) {
+				port = le32_to_cpu(buf[1]);
+				if (port > U8_MAX || port == 0) {
 					rc = -EINVAL;
 					goto out;
 				}
 
-				c->u.ibendport.port = le32_to_cpu(buf[1]);
+				c->u.ibendport.port = port;
 
 				rc = context_read_and_validate(&c->context[0],
 							       p,
@@ -2261,7 +2276,8 @@ static int ocontext_read(struct policydb *p, struct policydb_compat_info *info,
 				if (rc)
 					goto out;
 				break;
-			}
+			} /* end case */
+			} /* end switch */
 		}
 	}
 	rc = 0;
@@ -2367,13 +2383,13 @@ int policydb_read(struct policydb *p, void *fp)
 	p->allow_unknown = !!(le32_to_cpu(buf[1]) & ALLOW_UNKNOWN);
 
 	if (p->policyvers >= POLICYDB_VERSION_POLCAP) {
-		rc = ebitmap_read(&p->policycaps, fp, false);
+		rc = ebitmap_read(&p->policycaps, fp);
 		if (rc)
 			goto bad;
 	}
 
 	if (p->policyvers >= POLICYDB_VERSION_PERMISSIVE) {
-		rc = ebitmap_read(&p->permissive_map, fp, false);
+		rc = ebitmap_read(&p->permissive_map, fp);
 		if (rc)
 			goto bad;
 	}
@@ -2535,9 +2551,9 @@ int policydb_read(struct policydb *p, void *fp)
 		struct ebitmap *e = flex_array_get(p->type_attr_map_array, i);
 
 		BUG_ON(!e);
-		ebitmap_init(e, false);
+		ebitmap_init(e);
 		if (p->policyvers >= POLICYDB_VERSION_AVTAB) {
-			rc = ebitmap_read(e, fp, false);
+			rc = ebitmap_read(e, fp);
 			if (rc)
 				goto bad;
 		}
@@ -3104,6 +3120,7 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 {
 	unsigned int i, j, rc;
 	size_t nel, len;
+	__be64 prefixbuf[1];
 	__le32 buf[3];
 	u32 nodebuf[8];
 	struct ocontext *c;
@@ -3191,12 +3208,17 @@ static int ocontext_write(struct policydb *p, struct policydb_compat_info *info,
 					return rc;
 				break;
 			case OCON_IBPKEY:
-				*((__be64 *)nodebuf) = cpu_to_be64(c->u.ibpkey.subnet_prefix);
+				/* subnet_prefix is in CPU order */
+				prefixbuf[0] = cpu_to_be64(c->u.ibpkey.subnet_prefix);
 
-				nodebuf[2] = cpu_to_le32(c->u.ibpkey.low_pkey);
-				nodebuf[3] = cpu_to_le32(c->u.ibpkey.high_pkey);
+				rc = put_entry(prefixbuf, sizeof(u64), 1, fp);
+				if (rc)
+					return rc;
 
-				rc = put_entry(nodebuf, sizeof(u32), 4, fp);
+				buf[0] = cpu_to_le32(c->u.ibpkey.low_pkey);
+				buf[1] = cpu_to_le32(c->u.ibpkey.high_pkey);
+
+				rc = put_entry(buf, sizeof(u32), 2, fp);
 				if (rc)
 					return rc;
 				rc = context_write(p, &c->context[0], fp);
