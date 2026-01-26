@@ -50,10 +50,10 @@ then
 
 	cp out/arch/arm64/boot/Image.gz Image.gz 
 		
-	# Pack Enforcing Kernel
-	tools/mkbootimg --kernel out/arch/arm64/boot/Image.gz --base 0x00078000 --cmdline "loglevel=4 page_tracker=on unmovable_isolate1=2:192M,3:224M,4:256M printktimer=0xfff0a000,0x534,0x538 androidboot.selinux=permissif buildvariant=user" --tags_offset 0x37d88000 --kernel_offset 0x00008000 --second_offset 0x00e88000 --ramdisk_offset 0x37588000 --header_version 1 --os_version 10.0.0 --os_patch_level 2020-11 --output Kirin970_HOS2_PM-${end_time}.img
-	
 	# Pack Permissive Kernel
+	tools/mkbootimg --kernel out/arch/arm64/boot/Image.gz --base 0x00078000 --cmdline "loglevel=4 page_tracker=on unmovable_isolate1=2:192M,3:224M,4:256M printktimer=0xfff0a000,0x534,0x538 androidboot.selinux=permissive buildvariant=user" --tags_offset 0x37d88000 --kernel_offset 0x00008000 --second_offset 0x00e88000 --ramdisk_offset 0x37588000 --header_version 1 --os_version 10.0.0 --os_patch_level 2020-11 --output Kirin970_HOS2_permissive-${end_time}.img
+	
+	# Pack Enforcing Kernel
 	tools/mkbootimg --kernel out/arch/arm64/boot/Image.gz --base 0x00078000 --cmdline "loglevel=4 page_tracker=on unmovable_isolate1=2:192M,3:224M,4:256M printktimer=0xfff0a000,0x534,0x538 androidboot.selinux=enforcing buildvariant=user" --tags_offset 0x37d88000 --kernel_offset 0x00008000 --second_offset 0x00e88000 --ramdisk_offset 0x37588000 --header_version 1 --os_version 10.0.0 --os_patch_level 2020-11 --output Kirin970_HOS2-${end_time}.img
 # Now 
 
