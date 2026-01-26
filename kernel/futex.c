@@ -2471,13 +2471,18 @@ static void unqueue_me_pi(struct futex_q *q)
 	spin_unlock(q->lock_ptr);
 }
 
-static int __fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
-				  struct task_struct *argowner)
+static int fixup_pi_state_owner(u32 __user *uaddr, struct futex_q *q,
+				struct task_struct *argowner)
 {
-	u32 uval, uninitialized_var(curval), newval, newtid;
 	struct futex_pi_state *pi_state = q->pi_state;
+	u32 uval, uninitialized_var(curval), newval;
 	struct task_struct *oldowner, *newowner;
-	int err = 0;
+	u32 newtid;
+	int ret, err = 0;
+
+	lockdep_assert_held(q->lock_ptr);
+
+	raw_spin_lock_irq(&pi_state->pi_mutex.wait_lock);
 
 	oldowner = pi_state->owner;
 
@@ -2597,16 +2602,17 @@ handle_err:
 
 	switch (err) {
 	case -EFAULT:
-		err = fault_in_user_writeable(uaddr);
+		ret = fault_in_user_writeable(uaddr);
 		break;
 
 	case -EAGAIN:
 		cond_resched();
-		err = 0;
+		ret = 0;
 		break;
 
 	default:
 		WARN_ON_ONCE(1);
+		ret = err;
 		break;
 	}
 
