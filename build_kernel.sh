@@ -30,6 +30,8 @@ echo "***Building kernel...***"
 start_time=$(date +%Y.%m.%d-%I_%M)
 start_time_sum=$(date +%s)
 
+git submodule update --init --recursive
+
 make ARCH=arm64 O=out CC="ccache clang" kirin970_defconfig ksun_sus.config menuconfig
 make ARCH=arm64 O=out CC="ccache clang" -j$(nproc --all)
 
