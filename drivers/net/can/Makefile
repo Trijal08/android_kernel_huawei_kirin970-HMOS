@@ -36,5 +36,6 @@ obj-$(CONFIG_CAN_XILINXCAN)	+= xilinx_can.o
 obj-$(CONFIG_PCH_CAN)		+= pch_can.o
 obj-$(CONFIG_hlcan)		+= usb-can-2-module/
 obj-$(CONFIG_CAN_ISOTP)		+= can-isotp/
+obj-$(CONFIG_CAN_CAN327)	+= can327.o
 
 subdir-ccflags-$(CONFIG_CAN_DEBUG_DEVICES) += -DDEBUG
