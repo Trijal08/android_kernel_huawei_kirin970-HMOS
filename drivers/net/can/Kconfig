@@ -170,6 +170,7 @@ source "drivers/net/can/usb/Kconfig"
 endif
 
 source "drivers/net/can/usb-can-2-module/Kconfig"
+source "drivers/net/can/can-isotp/Kconfig"
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
