@@ -31,28 +31,8 @@
 #include <linux/rbtree_latch.h>
 #include <linux/kallsyms.h>
 #include <linux/rcupdate.h>
-#ifdef CONFIG_HKIP_PRMEM
-#include <linux/hisi/prmem.h>
-#endif
+
 #include <asm/unaligned.h>
-
-/*
- * BPF allocations are never modified inplace, so the memory can be
- * declared as ro. However, they get released, so the allcoations must be
- * reclaimable.
- * Either disabling the feature or setting the pool cap to 0 will prevent
- * any limitation in memory allocated.
- * This limit should not be kept disabled in production code.
- */
-#ifdef CONFIG_HKIP_PROTECT_BPF
-#if (CONFIG_HKIP_PROTECT_BPF_CAP > 0)
-#define bpf_cap round_up((CONFIG_HKIP_PROTECT_BPF_CAP * SZ_1M), PAGE_SIZE)
-#else
-#define bpf_cap PRMEM_NO_CAP
-#endif
-
-PRMEM_POOL(bpf_pool, ro_recl, sizeof(void *), PAGE_SIZE, bpf_cap);
-#endif
 
 /* Registers */
 #define BPF_R0	regs[BPF_REG_0]
@@ -97,27 +77,18 @@ void *bpf_internal_load_pointer_neg_helper(const struct sk_buff *skb, int k, uns
 
 struct bpf_prog *bpf_prog_alloc(unsigned int size, gfp_t gfp_extra_flags)
 {
-#ifndef CONFIG_HKIP_PROTECT_BPF
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
-#endif
 	struct bpf_prog_aux *aux;
 	struct bpf_prog *fp;
 
 	size = round_up(size, PAGE_SIZE);
-#ifdef CONFIG_HKIP_PROTECT_BPF
-	fp = pmalloc(&bpf_pool, size, PRMEM_FREEABLE_NODE);
-#else
 	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
-#endif
 	if (fp == NULL)
 		return NULL;
+
 	aux = kzalloc(sizeof(*aux), GFP_KERNEL | gfp_extra_flags);
 	if (aux == NULL) {
-#ifdef CONFIG_HKIP_PROTECT_BPF
-		pfree(fp);
-#else
 		vfree(fp);
-#endif
 		return NULL;
 	}
 
@@ -134,9 +105,7 @@ EXPORT_SYMBOL_GPL(bpf_prog_alloc);
 struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 				  gfp_t gfp_extra_flags)
 {
-#ifndef CONFIG_HKIP_PROTECT_BPF
 	gfp_t gfp_flags = GFP_KERNEL | __GFP_ZERO | gfp_extra_flags;
-#endif
 	struct bpf_prog *fp;
 	u32 pages, delta;
 	int ret;
@@ -153,11 +122,7 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 	if (ret)
 		return NULL;
 
-#ifdef CONFIG_HKIP_PROTECT_BPF
-	fp = pmalloc(&bpf_pool, size, PRMEM_FREEABLE_NODE);
-#else
 	fp = __vmalloc(size, gfp_flags, PAGE_KERNEL);
-#endif
 	if (fp == NULL) {
 		__bpf_prog_uncharge(fp_old->aux->user, delta);
 	} else {
@@ -178,11 +143,7 @@ struct bpf_prog *bpf_prog_realloc(struct bpf_prog *fp_old, unsigned int size,
 void __bpf_prog_free(struct bpf_prog *fp)
 {
 	kfree(fp->aux);
-#ifdef CONFIG_HKIP_PROTECT_BPF
-	pfree(fp);
-#else
 	vfree(fp);
-#endif
 }
 
 int bpf_prog_calc_tag(struct bpf_prog *fp)
@@ -644,6 +605,26 @@ static int bpf_jit_blind_insn(const struct bpf_insn *from,
 
 	BUILD_BUG_ON(BPF_REG_AX  + 1 != MAX_BPF_JIT_REG);
 	BUILD_BUG_ON(MAX_BPF_REG + 1 != MAX_BPF_JIT_REG);
+
+	/* Constraints on AX register:
+	 *
+	 * AX register is inaccessible from user space. It is mapped in
+	 * all JITs, and used here for constant blinding rewrites. It is
+	 * typically "stateless" meaning its contents are only valid within
+	 * the executed instruction, but not across several instructions.
+	 * There are a few exceptions however which are further detailed
+	 * below.
+	 *
+	 * Constant blinding is only used by JITs, not in the interpreter.
+	 * The interpreter uses AX in some occasions as a local temporary
+	 * register e.g. in DIV or MOD instructions.
+	 *
+	 * In restricted circumstances, the verifier can also use the AX
+	 * register for rewrites as long as they do not interfere with
+	 * the above cases!
+	 */
+	if (from->dst_reg == BPF_REG_AX || from->src_reg == BPF_REG_AX)
+		goto out;
 
 	if (from->imm == 0 &&
 	    (from->code == (BPF_ALU   | BPF_MOV | BPF_K) ||
@@ -1491,7 +1472,6 @@ struct bpf_prog *bpf_prog_select_runtime(struct bpf_prog *fp, int *err)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_select_runtime);
 
-#ifndef CONFIG_HKIP_PROTECT_BPF
 static void bpf_prog_free_deferred(struct work_struct *work)
 {
 	struct bpf_prog_aux *aux;
@@ -1499,19 +1479,14 @@ static void bpf_prog_free_deferred(struct work_struct *work)
 	aux = container_of(work, struct bpf_prog_aux, work);
 	bpf_jit_free(aux->prog);
 }
-#endif
 
 /* Free internal BPF program */
 void bpf_prog_free(struct bpf_prog *fp)
 {
-#ifdef CONFIG_HKIP_PROTECT_BPF
-	__bpf_prog_free(fp);
-#else
 	struct bpf_prog_aux *aux = fp->aux;
 
 	INIT_WORK(&aux->work, bpf_prog_free_deferred);
 	schedule_work(&aux->work);
-#endif
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
 

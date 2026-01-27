@@ -6388,6 +6388,9 @@ static u32 bpf_map_fmode_to_av(fmode_t fmode)
  * access the bpf object and that's why we have to add this additional check in
  * selinux_file_receive and selinux_binder_transfer_files.
  */
+static const struct file_operations bpf_map_fops;
+static const struct file_operations bpf_prog_fops;
+
 static int bpf_fd_pass(struct file *file, u32 sid)
 {
 	struct bpf_security_struct *bpfsec;
