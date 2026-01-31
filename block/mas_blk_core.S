@@ -3,23 +3,28 @@
                                         // Start of file scope inline assembly
 	.section "___kcrctab+blk_dev_write_order_preserved", "a"	
 	.weak	__crc_blk_dev_write_order_preserved	
-	.long	__crc_blk_dev_write_order_preserved	
+	.protected __crc_blk_dev_write_order_preserved
+	.long	__crc_blk_dev_write_order_preserved- .
 	.previous					
 	.section "___kcrctab+blk_req_get_order_nr", "a"	
 	.weak	__crc_blk_req_get_order_nr	
-	.long	__crc_blk_req_get_order_nr	
+	.protected __crc_blk_req_get_order_nr
+	.long	__crc_blk_req_get_order_nr	- .
 	.previous					
 	.section "___kcrctab+blk_queue_order_enable", "a"	
 	.weak	__crc_blk_queue_order_enable	
-	.long	__crc_blk_queue_order_enable	
+	.protected __crc_blk_queue_order_enable
+	.long	__crc_blk_queue_order_enable	- .
 	.previous					
 	.section "___kcrctab+blk_queue_query_order_enable", "a"	
 	.weak	__crc_blk_queue_query_order_enable	
-	.long	__crc_blk_queue_query_order_enable	
+	.protected __crc_blk_queue_query_order_enable
+	.long	__crc_blk_queue_query_order_enable	- .
 	.previous					
 	.section "___kcrctab+blk_order_nr_reset", "a"	
-	.weak	__crc_blk_order_nr_reset	
-	.long	__crc_blk_order_nr_reset	
+	.weak	__crc_blk_order_nr_reset
+	.protected __crc_blk_order_nr_reset
+	.long	__crc_blk_order_nr_reset	- .
 	.previous					
 
                                         // End of file scope inline assembly
