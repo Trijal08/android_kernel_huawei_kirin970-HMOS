@@ -1569,7 +1569,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	list_for_each_entry_safe(page, next, page_list, lru) {
 #ifdef CONFIG_MEMCG_PROTECT_LRU
 		if (page_is_file_cache(page) && !PageDirty(page) &&
-		    !__PageMovable(page) && !PageUnevictable(page) && !PageProtect(page)) {
+		    !__PageMovable(page) && !PageUnevictable(page)) {
 			ClearPageActive(page);
 			list_move(&page->lru, &clean_pages);
 		}
