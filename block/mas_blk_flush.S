@@ -3,7 +3,8 @@
                                         // Start of file scope inline assembly
 	.section "___kcrctab+mas_blk_panic_flush", "a"	
 	.weak	__crc_mas_blk_panic_flush	
-	.long	__crc_mas_blk_panic_flush	
+	.protected __crc_mas_blk_panic_flush
+	.long	__crc_mas_blk_panic_flush	- .
 	.previous					
 
                                         // End of file scope inline assembly
