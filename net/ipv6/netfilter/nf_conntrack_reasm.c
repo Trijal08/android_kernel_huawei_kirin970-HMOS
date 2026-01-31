@@ -269,15 +269,14 @@ static int nf_ct_frag6_queue(struct frag_queue *fq, struct sk_buff *skb,
 	 * this fragment, right?
 	 */
 	prev = fq->q.fragments_tail;
-	if (!prev || NFCT_FRAG6_CB(prev)->offset < offset) {
-		next = NULL;
-		goto found;
-	}
-	prev = NULL;
-	for (next = fq->q.fragments; next != NULL; next = next->next) {
-		if (NFCT_FRAG6_CB(next)->offset >= offset)
-			break;	/* bingo! */
-		prev = next;
+	err = inet_frag_queue_insert(&fq->q, skb, offset, end);
+	if (err) {
+		if (err == IPFRAG_DUP) {
+			/* No error for duplicates, pretend they got queued. */
+			kfree_skb(skb);
+			return -EINPROGRESS;
+		}
+		goto insert_error;
 	}
 
 found:
@@ -330,7 +329,20 @@ found:
 
 	return 0;
 
-discard_fq:
+		skb->_skb_refdst = 0UL;
+		err = nf_ct_frag6_reasm(fq, skb, prev, dev);
+		skb->_skb_refdst = orefdst;
+
+		/* After queue has assumed skb ownership, only 0 or
+		 * -EINPROGRESS must be returned.
+		 */
+		return err ? -EINPROGRESS : 0;
+	}
+
+	skb_dst_drop(skb);
+	return -EINPROGRESS;
+
+insert_error:
 	inet_frag_kill(&fq->q);
 err:
 	return -EINVAL;
@@ -585,16 +597,6 @@ int nf_ct_frag6_gather(struct net *net, struct sk_buff *skb, u32 user)
 		goto out_unlock;
 	}
 
-	/* after queue has assumed skb ownership, only 0 or -EINPROGRESS
-	 * must be returned.
-	 */
-	ret = -EINPROGRESS;
-	if (fq->q.flags == (INET_FRAG_FIRST_IN | INET_FRAG_LAST_IN) &&
-	    fq->q.meat == fq->q.len &&
-	    nf_ct_frag6_reasm(fq, skb, dev))
-		ret = 0;
-
-out_unlock:
 	spin_unlock_bh(&fq->q.lock);
 	inet_frag_put(&fq->q);
 	return ret;

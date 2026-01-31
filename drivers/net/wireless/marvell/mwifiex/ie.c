@@ -413,7 +413,7 @@ static int mwifiex_uap_parse_tail_ies(struct mwifiex_private *priv,
 
 	priv->gen_idx = gen_idx;
 
-out:
+ out:
 	kfree(gen_ie);
 	return err;
 }
