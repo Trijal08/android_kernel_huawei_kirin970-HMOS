@@ -383,10 +383,10 @@ struct ufs_vreg {
 	const char *name;
 	bool enabled;
 	bool unused;
-	int min_uv;
-	int max_uv;
-	int min_ua;
-	int max_ua;
+	int min_uV;
+	int max_uV;
+	int min_uA;
+	int max_uA;
 };
 
 struct ufs_vreg_info {

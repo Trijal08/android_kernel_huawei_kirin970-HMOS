@@ -7320,19 +7320,19 @@ static u32 ufshcd_find_max_sup_active_icc_level(struct ufs_hba *hba,
 
 	if (hba->vreg_info.vcc && hba->vreg_info.vcc->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
-				hba->vreg_info.vcc->max_ua,
+				hba->vreg_info.vcc->max_uA,
 				POWER_DESC_MAX_ACTV_ICC_LVLS - 1,
 				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCC_0]);
 
 	if (hba->vreg_info.vccq && hba->vreg_info.vccq->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
-				hba->vreg_info.vccq->max_ua,
+				hba->vreg_info.vccq->max_uA,
 				icc_level,
 				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCCQ_0]);
 
 	if (hba->vreg_info.vccq2 && hba->vreg_info.vccq2->max_uA)
 		icc_level = ufshcd_get_max_icc_level(
-				hba->vreg_info.vccq2->max_ua,
+				hba->vreg_info.vccq2->max_uA,
 				icc_level,
 				&desc_buf[PWR_DESC_ACTIVE_LVLS_VCCQ2_0]);
 out:
@@ -8157,7 +8157,7 @@ static inline int ufshcd_config_vreg_hpm(struct ufs_hba *hba,
 	else if (vreg->unused)
 		return 0;
 	else
-		return ufshcd_config_vreg_load(hba->dev, vreg, vreg->max_ua);
+		return ufshcd_config_vreg_load(hba->dev, vreg, vreg->max_uA);
 }
 
 static int ufshcd_config_vreg(struct device *dev,
@@ -8166,7 +8166,7 @@ static int ufshcd_config_vreg(struct device *dev,
 	int ret = 0;
 	struct regulator *reg = NULL;
 	const char *name = NULL;
-	int min_uv, uA_load;
+	int min_uV, uA_load;
 
 	BUG_ON(!vreg);
 
@@ -8185,7 +8185,7 @@ static int ufshcd_config_vreg(struct device *dev,
 			}
 		}
 
-		uA_load = on ? vreg->max_ua : 0;
+		uA_load = on ? vreg->max_uA : 0;
 		ret = ufshcd_config_vreg_load(dev, vreg, uA_load);
 		if (ret)
 			goto out;
