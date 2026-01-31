@@ -182,8 +182,9 @@ static const char * const smbus_pnp_ids[] = {
 	"LEN0099", /* X1 Extreme 1st */
 	"LEN009b", /* T580 */
 	"LEN200f", /* T450s */
-	"SYN3257", /* HP Envy 13-ad105ng */
-	"LEN2044", /* L470  */
+	"LEN2054", /* E480 */
+	"LEN2055", /* E580 */
+	"SYN3052", /* HP EliteBook 840 G4 */
 	"SYN3221", /* HP 15-ay000 */
 	NULL
 };

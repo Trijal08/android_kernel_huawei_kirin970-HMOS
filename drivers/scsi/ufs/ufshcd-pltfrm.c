@@ -395,19 +395,7 @@ int ufshcd_pltfrm_probe(struct platform_device *pdev)
 			dev_err(dev, "UFS timer interrupt is not available!\n");
 	}
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_irq_safe(&pdev->dev);
-	pm_suspend_ignore_children(&pdev->dev, true);
-	/* pm runtime delay 5 us time */
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 5);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	if (of_find_property(np, "ufs-kirin-disable-pm-runtime", NULL))
-		hba->caps |= DISABLE_UFS_PMRUNTIME;
-
-	/* auto hibern8 can not exist with pm runtime */
-	if ((hba->caps & DISABLE_UFS_PMRUNTIME) ||
-		of_find_property(np, "ufs-kirin-use-auto-H8", NULL))
-		pm_runtime_forbid(hba->dev);
+	ufshcd_init_lanes_per_dir(hba);
 
 	parse_hpb_dts(hba, np);
 
@@ -418,7 +406,7 @@ int ufshcd_pltfrm_probe(struct platform_device *pdev)
 	err = ufshcd_init(hba, mmio_base, irq, timer_irq);
 	if (err) {
 		dev_err(dev, "Initialization failed\n");
-		goto out_disable_rpm;
+		goto dealloc_host;
 	}
 
 #ifndef CONFIG_SCSI_UFS_ENHANCED_INLINE_CRYPTO_V2
@@ -437,11 +425,13 @@ int ufshcd_pltfrm_probe(struct platform_device *pdev)
 #endif
 	platform_set_drvdata(pdev, hba);
 
+	pm_runtime_set_active(&pdev->dev);
+	pm_runtime_enable(&pdev->dev);
+
 	return 0;
 
-out_disable_rpm:
-	pm_runtime_disable(&pdev->dev);
-	pm_runtime_set_suspended(&pdev->dev);
+dealloc_host:
+	ufshcd_dealloc_host(hba);
 out:
 	return err;
 }
