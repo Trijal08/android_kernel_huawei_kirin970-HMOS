@@ -634,9 +634,7 @@ asmlinkage __visible void __init start_kernel(void)
 	build_all_zonelists(NULL);
 	page_alloc_init();
 
-#ifdef CMDLINE_INFO_FILTER
-	print_filtered_cmdline(boot_command_line);
-#endif
+	pr_notice("Kernel command line: %s\n", boot_command_line);
 	/* parameters may set static keys */
 	jump_label_init();
 	parse_early_param();
