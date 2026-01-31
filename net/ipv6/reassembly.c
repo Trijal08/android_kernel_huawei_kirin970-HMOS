@@ -49,6 +49,7 @@
 
 #include <net/sock.h>
 #include <net/snmp.h>
+#include <net/ipv6_frag.h>
 
 #include <net/ipv6.h>
 #include <net/ip6_route.h>
