@@ -213,7 +213,6 @@ enum brcmf_fweh_event_code {
 #define BCMILCP_BCM_SUBTYPE_EVENT		1
 #define BCMILCP_SUBTYPE_VENDOR_LONG		32769
 
-
 /**
  * struct brcm_ethhdr - broadcom specific ether header.
  *
@@ -338,8 +337,7 @@ static inline void brcmf_fweh_process_skb(struct brcmf_pub *drvr,
 					  struct sk_buff *skb, u16 stype)
 {
 	struct brcmf_event *event_packet;
-	u16 usr_stype;
-	u16 subtype;
+	u16 subtype, usr_stype;
 
 	/* only process events when protocol matches */
 	if (skb->protocol != cpu_to_be16(ETH_P_LINK_CTL))

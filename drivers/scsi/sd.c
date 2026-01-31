@@ -2700,30 +2700,6 @@ sd_read_write_protect_flag(struct scsi_disk *sdkp, unsigned char *buffer)
 			  "Test WP failed, assume Write Enabled\n");
 	} else {
 		sdkp->write_prot = ((data.device_specific & 0x80) != 0);
-
-#ifdef CONFIG_HUAWEI_STORAGE_ROFA_FAULT_INJECT
-		if (storage_rochk_filter_sd(sdp)) {
-			if (storage_rofi_should_inject_write_prot_status())
-				sdkp->write_prot = 1; /* set wp as true */
-		}
-#endif
-#ifdef CONFIG_HUAWEI_STORAGE_ROFA
-		if (storage_rochk_filter_sd(sdp)) {
-			unsigned int bootopt;
-
-			storage_rochk_record_disk_wp_status(
-				sdkp->disk->disk_name, sdkp->write_prot);
-
-			bootopt = get_storage_rofa_bootopt();
-			if (sdkp->write_prot &&
-			    bootopt == STORAGE_ROFA_BOOTOPT_BYPASS) {
-				sd_printk(KERN_NOTICE, sdkp,
-					"Reset Write Protect\n");
-				sdkp->write_prot = 0;
-			}
-		}
-#endif
-
 		set_disk_ro(sdkp->disk, sdkp->write_prot);
 		if (sdkp->first_scan || old_wp != sdkp->write_prot) {
 			sd_printk(KERN_NOTICE, sdkp, "Write Protect is %s\n",

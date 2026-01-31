@@ -30,6 +30,13 @@ static inline long do_strncpy_from_user(char *dst, const char __user *src,
 	const struct word_at_a_time constants = WORD_AT_A_TIME_CONSTANTS;
 	unsigned long res = 0;
 
+	/*
+	 * Truncate 'max' to the user-specified limit, so that
+	 * we only have one limit we need to check in the loop
+	 */
+	if (max > count)
+		max = count;
+
 	if (IS_UNALIGNED(src, dst))
 		goto byte_at_a_time;
 
