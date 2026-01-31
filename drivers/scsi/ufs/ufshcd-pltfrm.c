@@ -48,6 +48,8 @@
 #include "ufs-kirin.h"
 #include "ufs-hisi.h"
 
+#define UFSHCD_DEFAULT_LANES_PER_DIRECTION		2
+
 static const struct of_device_id ufs_of_match[] = {
 	{.compatible = "jedec,ufs-1.1"},
 	{
@@ -228,6 +230,21 @@ static void ufshcd_pltfrm_shutdown(struct platform_device *pdev)
 	ufshcd_shutdown(hba);
 
 	dev_err(&pdev->dev, "%s --\n", __func__);
+}
+
+static void ufshcd_init_lanes_per_dir(struct ufs_hba *hba)
+{
+	struct device *dev = hba->dev;
+	int ret;
+
+	ret = of_property_read_u32(dev->of_node, "lanes-per-direction",
+		&hba->lanes_per_direction);
+	if (ret) {
+		dev_dbg(hba->dev,
+			"%s: failed to read lanes-per-direction, ret=%d\n",
+			__func__, ret);
+		hba->lanes_per_direction = UFSHCD_DEFAULT_LANES_PER_DIRECTION;
+	}
 }
 
 static int hufs_ufshcd_use_hc_value(struct device *dev)
@@ -418,7 +435,7 @@ int ufshcd_pltfrm_probe(struct platform_device *pdev)
 	err = ufshcd_keyregs_remap_wc(hba, mem_res->start);
 	if (err) {
 		dev_err(dev, "ufshcd_keyregs_remap_wc err\n");
-		goto out_disable_rpm;
+		goto dealloc_host;
 	}
 
 #endif
