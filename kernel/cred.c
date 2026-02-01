@@ -246,7 +246,10 @@ void __put_cred(struct cred *cred)
 	BUG_ON(cred == current->cred);
 	BUG_ON(cred == current->real_cred);
 
-	call_rcu(&cred->rcu, put_cred_rcu);
+	if (cred->non_rcu)
+		put_cred_rcu(&cred->rcu);
+	else
+		call_rcu(&cred->rcu, put_cred_rcu);
 }
 #endif
 EXPORT_SYMBOL(__put_cred);
@@ -395,19 +398,8 @@ struct cred *prepare_creds(void)
 
 	old = task->cred;
 	memcpy(new, old, sizeof(struct cred));
-#ifdef CONFIG_HKIP_PROTECT_CRED
-	old_cred_rw = container_of(old->usage, struct cred_rw, usage);
-	validate_cred_rw(old_cred_rw);
-	memcpy(cred_rw, old_cred_rw, sizeof(struct cred_rw));
-	new->usage = &cred_rw->usage;
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	new->subscribers = &cred_rw->subscribers;
-#endif
-	new->rcu = &cred_rw->rcu;
-	new->task = task;
-	cred_rw->cred_wr = new;
-	atomic_set(new->usage, 1);
-#else
+
+	new->non_rcu = 0;
 	atomic_set(&new->usage, 1);
 #endif
 	set_cred_subscribers(new, 0);
@@ -790,7 +782,19 @@ const struct cred *override_creds(const struct cred *new)
 
 	validate_creds(old);
 	validate_creds(new);
-	get_cred(new);
+
+	/*
+	 * NOTE! This uses 'get_new_cred()' rather than 'get_cred()'.
+	 *
+	 * That means that we do not clear the 'non_rcu' flag, since
+	 * we are only installing the cred into the thread-synchronous
+	 * '->cred' pointer, not the '->real_cred' pointer that is
+	 * visible to other threads under RCU.
+	 *
+	 * Also note that we did validate_creds() manually, not depending
+	 * on the validation in 'get_cred()'.
+	 */
+	get_new_cred((struct cred *)new);
 	alter_cred_subscribers(new, 1);
 	rcu_assign_pointer(current->cred, new);
 	alter_cred_subscribers(old, -1);
@@ -905,22 +909,7 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	validate_creds(old);
 
 	*new = *old;
-#ifdef CONFIG_HKIP_PROTECT_CRED
-	old_cred_rw = container_of(old->usage, struct cred_rw, usage);
-	validate_cred_rw(old_cred_rw);
-	memcpy(cred_rw, old_cred_rw, sizeof(struct cred_rw));
-	new->usage = &cred_rw->usage;
-#ifdef CONFIG_DEBUG_CREDENTIALS
-	new->subscribers = &cred_rw->subscribers;
-#endif
-	new->rcu = &cred_rw->rcu;
-	if (daemon)
-		new->task = daemon;
-	else
-		new->task = &init_task;
-	cred_rw->cred_wr = new;
-	atomic_set(new->usage, 1);
-#else
+	new->non_rcu = 0;
 	atomic_set(&new->usage, 1);
 #endif
 	set_cred_subscribers(new, 0);

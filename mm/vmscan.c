@@ -2596,8 +2596,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
  *    1TB     101        10GB
  *   10TB     320        32GB
  */
-#ifndef CONFIG_REFAULT_IO_VMSCAN
-bool inactive_list_is_low(struct lruvec *lruvec, bool file,
+static bool inactive_list_is_low(struct lruvec *lruvec, bool file,
 				 struct scan_control *sc, bool trace)
 {
 	enum lru_list active_lru = file * LRU_FILE + LRU_ACTIVE; /*lint !e514*/

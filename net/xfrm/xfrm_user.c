@@ -166,6 +166,28 @@ static int verify_newsa_info(struct xfrm_usersa_info *p,
 		goto out;
 	}
 
+	switch (p->sel.family) {
+	case AF_UNSPEC:
+		break;
+
+	case AF_INET:
+		if (p->sel.prefixlen_d > 32 || p->sel.prefixlen_s > 32)
+			goto out;
+
+		break;
+
+	case AF_INET6:
+#if IS_ENABLED(CONFIG_IPV6)
+		break;
+#else
+		err = -EAFNOSUPPORT;
+		goto out;
+#endif
+
+	default:
+		goto out;
+	}
+
 	err = -EINVAL;
 	switch (p->id.proto) {
 	case IPPROTO_AH:
