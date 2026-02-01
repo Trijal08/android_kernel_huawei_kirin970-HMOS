@@ -1033,37 +1033,6 @@ static int tcp_send_mss(struct sock *sk, int *size_goal, int flags)
 	return mss_now;
 }
 
-#ifdef CONFIG_TCP_NODELAY
-
-#define TCP_NODELAY_COUNT_LIMIT	8
-
-static bool tcp_should_nodelay(struct sock *sk, size_t size, int mss)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	if (tp->nodelay && sysctl_tcp_nodelay) {
-		/* limit no delay packet size to 3 * MTU */
-		int limit = (mss << 1) + mss;
-
-		/* send msg count */
-		tp->pingpong++;
-
-		/* 3 * mss sendmsg without response, disable nodely */
-		if (size >= limit || tp->nodelay_size >= limit ||
-		    tp->pingpong > TCP_NODELAY_COUNT_LIMIT) {
-			tp->nodelay = 0;
-			return false;
-		}
-
-		tp->nodelay_size += size;
-
-		/* allow nodelay for foreground app only */
-		return tcp_is_foreground();
-	}
-
-	return false;
-}
-#endif
 /* In some cases, both sendpage() and sendmsg() could have added
  * an skb to the write queue, but failed adding payload on it.
  * We need to remove it to consume less memory, but more
@@ -1072,10 +1041,10 @@ static bool tcp_should_nodelay(struct sock *sk, size_t size, int mss)
  */
 static void tcp_remove_empty_skb(struct sock *sk, struct sk_buff *skb)
 {
-	if (skb && !skb->len &&
-	    TCP_SKB_CB(skb)->end_seq == TCP_SKB_CB(skb)->seq) {
+	if (skb && !skb->len) {
 		tcp_unlink_write_queue(skb, sk);
-		tcp_check_send_head(sk, skb);
+		if (tcp_write_queue_empty(sk))
+			tcp_chrono_stop(sk, TCP_CHRONO_BUSY);
 		sk_wmem_free_skb(sk, skb);
 	}
 }
