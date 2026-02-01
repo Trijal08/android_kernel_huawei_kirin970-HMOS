@@ -2397,6 +2397,7 @@ do_more:
 					GET_SEGNO(sbi, range.start));
 #else
 	ret = f2fs_gc(sbi, range.sync, true, GET_SEGNO(sbi, range.start));
+#endif
 	range.start += BLKS_PER_SEC(sbi);
 	if (range.start <= end)
 		goto do_more;
