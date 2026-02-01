@@ -148,6 +148,9 @@
 /* maximum number of link-startup retries */
 #define DME_LINKSTARTUP_RETRIES 3
 
+/* Maximum retries for Hibern8 enter */
+#define UIC_HIBERN8_ENTER_RETRIES 3
+
 /* Expose the flag value from utp_upiu_query.value */
 #define MASK_QUERY_UPIU_FLAG_LOC 0xFF
 
@@ -4729,36 +4732,7 @@ static int ufshcd_uic_hibern8_enter(struct ufs_hba *hba)
 		if (!ret)
 			goto out;
 	}
-	ret = __ufshcd_wait_for_doorbell_clr(hba);
-	if (ret) {
-		dev_err(hba->dev, "wait doorbell clear timeout before enter H8\n");
-		goto out;
-	}
-	ret = __ufshcd_uic_hibern8_op_irq_safe(hba, HUFS_H8_OP_ENTER);
-	if (!ret)
-		hba->is_hibernate = true;
-	else
-		dev_err(hba->dev, "enter H8 fail\n");
 out:
-	if (ret) {
-		/* block commands from scsi mid-layer */
-		scsi_block_requests(hba->host);
-
-		ufshcd_print_host_regs(hba);
-		ufshcd_print_host_state(hba);
-		ufshcd_print_pwr_info(hba);
-
-#ifdef CONFIG_SCSI_UFS_HS_ERROR_RECOVER
-		hba->hs_single_lane = 0;
-		hba->use_pwm_mode = 0;
-#endif
-
-		hba->ufshcd_state = UFSHCD_STATE_EH_SCHEDULED;
-		hba->force_host_reset = 1;
-		if (!kthread_queue_work(&hba->eh_worker, &hba->eh_work))
-			dev_err(hba->dev, "%s: queue hba->eh_worker failed !\n", __func__);
-	}
-	spin_unlock_irqrestore(hba->host->host_lock, flags);
 	return ret;
 }
 
