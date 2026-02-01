@@ -447,15 +447,6 @@ ENTRY(__cpu_setup)
 	 * Prepare SCTLR
 	 */
 	mov_q	x0, SCTLR_EL1_SET
-#ifdef CONFIG_ARM64_ERRATUM_1392324
-	mrs x5, midr_el1
-	lsr x5, x5, #0x4
-	and x5, x5, #0xFFF
-	cmp x5, #0xD40       //the 0xD40 is partnum of enyo core
-	b.ne 1f
-	bic x0, x0, SCTLR_ELx_IESB
-1:
-#endif
 	/*
 	 * Set/prepare TCR and TTBR. We use 512GB (39-bit) address range for
 	 * both user and kernel.
