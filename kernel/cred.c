@@ -401,7 +401,6 @@ struct cred *prepare_creds(void)
 
 	new->non_rcu = 0;
 	atomic_set(&new->usage, 1);
-#endif
 	set_cred_subscribers(new, 0);
 	get_group_info(new->group_info);
 	get_uid(new->user);
@@ -911,7 +910,6 @@ struct cred *prepare_kernel_cred(struct task_struct *daemon)
 	*new = *old;
 	new->non_rcu = 0;
 	atomic_set(&new->usage, 1);
-#endif
 	set_cred_subscribers(new, 0);
 	get_uid(new->user);
 	get_user_ns(new->user_ns);
