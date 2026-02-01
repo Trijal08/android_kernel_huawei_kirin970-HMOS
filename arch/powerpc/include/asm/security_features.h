@@ -74,6 +74,12 @@ static inline bool security_ftr_enabled(unsigned long feature)
 // Firmware configuration indicates user favours security over performance
 #define SEC_FTR_FAVOUR_SECURITY		0x0000000000000200ull
 
+// Software required to flush count cache on context switch
+#define SEC_FTR_FLUSH_COUNT_CACHE	0x0000000000000400ull
+
+// Software required to flush link stack on context switch
+#define SEC_FTR_FLUSH_LINK_STACK	0x0000000000001000ull
+
 
 // Features enabled by default
 #define SEC_FTR_DEFAULT \

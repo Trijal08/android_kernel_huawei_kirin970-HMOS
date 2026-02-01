@@ -39,9 +39,6 @@ extern int memcmp(const void *, const void *, size_t);
 extern void *memchr(const void *, int, __kernel_size_t);
 #endif
 
-#define __HAVE_ARCH_STRCMP
-extern int strcmp(const char *, const char *);
-
 #define __HAVE_ARCH_MEMCPY
 extern void *memcpy(void *, const void *, __kernel_size_t);
 extern void *memcpy_reg(void *, const void *, __kernel_size_t);

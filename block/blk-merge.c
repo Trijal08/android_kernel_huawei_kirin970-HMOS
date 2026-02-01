@@ -775,15 +775,6 @@ static struct request *attempt_merge(struct request_queue *q,
 		return NULL;
 	}
 
-#ifdef CONFIG_SCSI_UFS_INLINE_CRYPTO
-	if (!mas_blk_inline_crypto_bio_merge_allow(req, next->bio))
-		return NULL;
-#endif
-#ifdef CONFIG_MAS_BLK
-	if (!mas_blk_bio_merge_allow(req, next->bio))
-		return NULL;
-#endif
-
 	/*
 	 * If failfast settings disagree or any of the two is already
 	 * a mixed merge, mark both as mixed before proceeding.  This

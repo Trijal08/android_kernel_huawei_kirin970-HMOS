@@ -55,7 +55,6 @@ EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memchr);
 #endif
 
-EXPORT_SYMBOL(strcmp);
 EXPORT_SYMBOL(memset);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memcpy_reg);
