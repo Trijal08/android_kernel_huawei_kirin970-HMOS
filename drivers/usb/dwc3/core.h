@@ -913,6 +913,7 @@ struct dwc3_scratchpad_array {
  * 	1	- -3.5dB de-emphasis
  * 	2	- No de-emphasis
  * 	3	- Reserved
+ * @dis_metastability_quirk: set to disable metastability quirk.
  * @imod_interval: set the interrupt moderation interval in 250ns
  *                 increments or 0 to disable.
  */
@@ -1096,6 +1097,8 @@ struct dwc3 {
 	unsigned		adjust_dtout:1;
 	unsigned		force_disable_host_lpm:1;
 	unsigned		enable_hst_imm_retry:1;
+
+	unsigned		dis_metastability_quirk:1;
 
 	u16			imod_interval;
 };
