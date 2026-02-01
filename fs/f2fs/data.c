@@ -558,7 +558,7 @@ int f2fs_submit_page_bio(struct f2fs_io_info *fio)
 
 	if (!f2fs_is_valid_blkaddr(fio->sbi, fio->new_blkaddr,
 			__is_meta_io(fio) ? META_GENERIC : DATA_GENERIC))
-		return -EFAULT;
+		return -EFSCORRUPTED;
 
 	trace_f2fs_submit_page_bio(page, fio);
 	f2fs_trace_ios(fio, 0);
@@ -1320,7 +1320,7 @@ next_block:
 	blkaddr = datablock_addr(dn.inode, dn.node_page, dn.ofs_in_node);
 	if (__is_valid_data_blkaddr(sbi, blkaddr) &&
 		!f2fs_is_valid_blkaddr(sbi, blkaddr, DATA_GENERIC)) {
-		err = -EFAULT;
+		err = -EFSCORRUPTED;
 		goto sync_out;
 	}
 
@@ -2135,7 +2135,7 @@ int f2fs_do_write_data_page(struct f2fs_io_info *fio)
 
 		if (!f2fs_is_valid_blkaddr(fio->sbi, fio->old_blkaddr,
 							DATA_GENERIC))
-			return -EFAULT;
+			return -EFSCORRUPTED;
 
 		ipu_force = true;
 		fio->need_lock = LOCK_DONE;
@@ -2162,7 +2162,7 @@ got_it:
 	if (__is_valid_data_blkaddr(sbi, fio->old_blkaddr) &&
 		!f2fs_is_valid_blkaddr(fio->sbi, fio->old_blkaddr,
 							DATA_GENERIC)) {
-		err = -EFAULT;
+		err = -EFSCORRUPTED;
 		goto out_writepage;
 	}
 	/*
