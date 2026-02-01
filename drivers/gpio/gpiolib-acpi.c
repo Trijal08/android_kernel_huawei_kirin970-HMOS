@@ -10,6 +10,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dmi.h>
 #include <linux/errno.h>
 #include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
@@ -23,6 +24,24 @@
 
 #include "gpiolib.h"
 
+static int run_edge_events_on_boot = -1;
+module_param(run_edge_events_on_boot, int, 0444);
+MODULE_PARM_DESC(run_edge_events_on_boot,
+		 "Run edge _AEI event-handlers at boot: 0=no, 1=yes, -1=auto");
+
+/**
+ * struct acpi_gpio_event - ACPI GPIO event handler data
+ *
+ * @node:	  list-entry of the events list of the struct acpi_gpio_chip
+ * @handle:	  handle of ACPI method to execute when the IRQ triggers
+ * @handler:	  irq_handler to pass to request_irq when requesting the IRQ
+ * @pin:	  GPIO pin number on the gpio_chip
+ * @irq:	  Linux IRQ number for the event, for request_ / free_irq
+ * @irqflags:     flags to pass to request_irq when requesting the IRQ
+ * @irq_is_wake:  If the ACPI flags indicate the IRQ is a wakeup source
+ * @is_requested: True if request_irq has been done
+ * @desc:	  gpio_desc for the GPIO pin for this event
+ */
 struct acpi_gpio_event {
 	struct list_head node;
 	struct list_head initial_sync_list;
@@ -201,8 +220,45 @@ bool acpi_gpio_get_irq_resource(struct acpi_resource *ares,
 }
 EXPORT_SYMBOL_GPL(acpi_gpio_get_irq_resource);
 
-static acpi_status acpi_gpiochip_request_interrupt(struct acpi_resource *ares,
-						   void *context)
+static void acpi_gpiochip_request_irq(struct acpi_gpio_chip *acpi_gpio,
+				      struct acpi_gpio_event *event)
+{
+	int ret, value;
+
+	ret = request_threaded_irq(event->irq, NULL, event->handler,
+				   event->irqflags, "ACPI:Event", event);
+	if (ret) {
+		dev_err(acpi_gpio->chip->parent,
+			"Failed to setup interrupt handler for %d\n",
+			event->irq);
+		return;
+	}
+
+	if (event->irq_is_wake)
+		enable_irq_wake(event->irq);
+
+	event->irq_requested = true;
+
+	/* Make sure we trigger the initial state of edge-triggered IRQs */
+	if (run_edge_events_on_boot &&
+	    (event->irqflags & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING))) {
+		value = gpiod_get_raw_value_cansleep(event->desc);
+		if (((event->irqflags & IRQF_TRIGGER_RISING) && value == 1) ||
+		    ((event->irqflags & IRQF_TRIGGER_FALLING) && value == 0))
+			event->handler(event->irq, event);
+	}
+}
+
+static void acpi_gpiochip_request_irqs(struct acpi_gpio_chip *acpi_gpio)
+{
+	struct acpi_gpio_event *event;
+
+	list_for_each_entry(event, &acpi_gpio->events, node)
+		acpi_gpiochip_request_irq(acpi_gpio, event);
+}
+
+static acpi_status acpi_gpiochip_alloc_event(struct acpi_resource *ares,
+					     void *context)
 {
 	struct acpi_gpio_chip *acpi_gpio = context;
 	struct gpio_chip *chip = acpi_gpio->chip;
@@ -1263,4 +1319,29 @@ static int acpi_gpio_initial_sync(void)
 	return 0;
 }
 /* We must use _sync so that this runs after the first deferred_probe run */
-late_initcall_sync(acpi_gpio_initial_sync);
+late_initcall_sync(acpi_gpio_handle_deferred_request_irqs);
+
+static const struct dmi_system_id run_edge_events_on_boot_blacklist[] = {
+	{
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MINIX"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Z83-4"),
+		}
+	},
+	{} /* Terminating entry */
+};
+
+static int acpi_gpio_setup_params(void)
+{
+	if (run_edge_events_on_boot < 0) {
+		if (dmi_check_system(run_edge_events_on_boot_blacklist))
+			run_edge_events_on_boot = 0;
+		else
+			run_edge_events_on_boot = 1;
+	}
+
+	return 0;
+}
+
+/* Directly after dmi_setup() which runs as core_initcall() */
+postcore_initcall(acpi_gpio_setup_params);
