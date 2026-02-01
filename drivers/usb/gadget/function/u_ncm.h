@@ -21,7 +21,6 @@
 struct f_ncm_opts {
 	struct usb_function_instance	func_inst;
 	struct net_device		*net;
-	struct device			dev;
 	bool				bound;
 
 	/*

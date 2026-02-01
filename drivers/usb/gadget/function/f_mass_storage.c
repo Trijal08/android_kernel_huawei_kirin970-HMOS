@@ -220,14 +220,11 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 #include <linux/usb/composite.h>
-#include <asm/uaccess.h>
 
 #include <linux/nospec.h>
 
 #include "configfs.h"
 
-#include <chipset_common/hwusb/hw_usb_rwswitch.h>
-#define SC_REWIND_11 0x11
 
 /*------------------------------------------------------------------------*/
 
@@ -497,12 +494,7 @@ static int fsg_setup(struct usb_function *f,
 	u16			w_value = le16_to_cpu(ctrl->wValue);
 	u16			w_length = le16_to_cpu(ctrl->wLength);
 
-	/* modify to adapt for Android */
-#ifdef CONFIG_CHIP_USB_CONFIGFS
-	if (!fsg->common->fsg)
-#else
 	if (!fsg_is_set(fsg->common))
-#endif
 		return -EOPNOTSUPP;
 
 	++fsg->common->ep0_req_tag;	/* Record arrival of a new request */
@@ -613,11 +605,11 @@ static int sleep_thread(struct fsg_common *common, bool can_freeze,
 		 * synchronize with the smp_store_release(&bh->state) in
 		 * bulk_in_complete() or bulk_out_complete()
 		 */
-		rc = wait_event_freezable(common->io_wait,  /*[false alarm]: it is a false alarm*/
+		rc = wait_event_freezable(common->io_wait,
 				bh && smp_load_acquire(&bh->state) >=
 					BUF_STATE_EMPTY);
 	else
-		rc = wait_event_interruptible(common->io_wait,  /*[false alarm]: it is a false alarm*/
+		rc = wait_event_interruptible(common->io_wait,
 				bh && smp_load_acquire(&bh->state) >=
 					BUF_STATE_EMPTY);
 	return rc ? -EINTR : 0;
@@ -1191,9 +1183,6 @@ static int do_read_header(struct fsg_common *common, struct fsg_buffhd *bh)
 	return 8;
 }
 
-#include "function-hisi/f_mass_storage_chip.c"
-
-#ifndef CONFIG_USB_MASS_STORAGE_SUPPORT_MAC
 static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 {
 	struct fsg_lun	*curlun = common->curlun;
@@ -1220,7 +1209,6 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	store_cdrom_address(&buf[16], msf, curlun->num_sectors);
 	return 20;
 }
-#endif
 
 static int do_mode_sense(struct fsg_common *common, struct fsg_buffhd *bh)
 {
@@ -1945,15 +1933,9 @@ static int do_scsi_command(struct fsg_common *common)
 			goto unknown_cmnd;
 		common->data_size_from_cmnd =
 			get_unaligned_be16(&common->cmnd[7]);
-#ifdef CONFIG_USB_MASS_STORAGE_SUPPORT_MAC
-		reply = check_command(common, 10, DATA_DIR_TO_HOST,
-				      (3<<1) | (7<<7), 1,
-				      "READ TOC");
-#else
 		reply = check_command(common, 10, DATA_DIR_TO_HOST,
 				      (7<<6) | (1<<1), 1,
 				      "READ TOC");
-#endif
 		if (reply == 0)
 			reply = do_read_toc(common, bh);
 		break;
@@ -2047,24 +2029,6 @@ static int do_scsi_command(struct fsg_common *common)
 		if (reply == 0)
 			reply = do_write(common);
 		break;
-	case SC_REWIND_11:
-		/*
-		 * when rework in manufacture, if the phone is in google ports mode,
-		 * we need to switch it to multi-ports mode for using the diag.
-		 */
-		{
-			u8 cmnd[MAX_COMMAND_SIZE];
-
-			memset(cmnd, 0, sizeof(cmnd));
-			cmnd[0] = SC_REWIND_11;
-			cmnd[1] = 0x06;
-			if (0 == memcmp(common->cmnd, cmnd, sizeof(cmnd)))
-				hw_usb_port_switch_request(INDEX_ENDUSER_SWITCH);//enduser pnp switch such as pc modem
-			cmnd[9] = 0x11;
-			if (0 == memcmp(common->cmnd, cmnd, sizeof(cmnd)))
-				hw_usb_port_switch_request(INDEX_FACTORY_REWORK);//manufactory rework
-		}
-		break;
 
 	/*
 	 * Some mandatory commands that we recognize but don't implement.
@@ -2085,8 +2049,7 @@ unknown_cmnd:
 		reply = check_command(common, common->cmnd_size,
 				      DATA_DIR_UNKNOWN, ~0, 0, unknown);
 		if (reply == 0) {
-			if (common->curlun)
-				common->curlun->sense_data = SS_INVALID_COMMAND;
+			common->curlun->sense_data = SS_INVALID_COMMAND;
 			reply = -EINVAL;
 		}
 		break;
@@ -2485,7 +2448,6 @@ static int fsg_main_thread(void *common_)
 {
 	struct fsg_common	*common = common_;
 	int			i;
-	mm_segment_t oldfs;
 
 	/*
 	 * Allow the thread to be killed by a signal, but set the signal mask
@@ -2498,7 +2460,6 @@ static int fsg_main_thread(void *common_)
 
 	/* Allow the thread to be frozen */
 	set_freezable();
-	oldfs = get_fs();
 
 	/* The main loop */
 	while (common->state != FSG_STATE_TERMINATED) {
@@ -2538,8 +2499,6 @@ static int fsg_main_thread(void *common_)
 
 	/* Let fsg_unbind() know the thread has exited */
 	complete_and_exit(&common->thread_notifier, 0);
-
-	set_fs(oldfs);
 }
 
 
@@ -2599,8 +2558,6 @@ static DEVICE_ATTR_RW(nofua);
 /* mode wil be set in fsg_lun_attr_is_visible() */
 static DEVICE_ATTR(ro, 0, ro_show, ro_store);
 static DEVICE_ATTR(file, 0, file_show, file_store);
-
-#include "hw_msconfig.c"
 
 /****************************** FSG COMMON ******************************/
 
@@ -2769,8 +2726,6 @@ static struct attribute *fsg_lun_dev_attrs[] = {
 	&dev_attr_ro.attr,
 	&dev_attr_file.attr,
 	&dev_attr_nofua.attr,
-	&dev_attr_autorun.attr,
-	&dev_attr_luns.attr,
 	NULL
 };
 
@@ -2781,9 +2736,9 @@ static umode_t fsg_lun_dev_is_visible(struct kobject *kobj,
 	struct fsg_lun *lun = fsg_lun_from_dev(dev);
 
 	if (attr == &dev_attr_ro.attr)
-		return lun->cdrom ? S_IRUGO : (S_IWUSR | S_IRUGO);  /*[false alarm]: it is a false alarm*/
+		return lun->cdrom ? S_IRUGO : (S_IWUSR | S_IRUGO);
 	if (attr == &dev_attr_file.attr)
-		return lun->removable ? (S_IWUSR | S_IRUGO) : S_IRUGO;  /*[false alarm]: it is a false alarm*/
+		return lun->removable ? (S_IWUSR | S_IRUGO) : S_IRUGO;
 	return attr->mode;
 }
 
@@ -2869,9 +2824,7 @@ int fsg_common_create_lun(struct fsg_common *common, struct fsg_lun_config *cfg,
 	      lun->ro ? "read only " : "",
 	      lun->cdrom ? "CD-ROM " : "",
 	      p);
-
-	if (pathbuf)
-		kfree(pathbuf);
+	kfree(pathbuf);
 
 	return 0;
 
@@ -3039,8 +2992,6 @@ static int fsg_bind(struct usb_configuration *c, struct usb_function *f)
 			fsg_ss_function, fsg_ss_function);
 	if (ret)
 		goto autoconf_fail;
-	pr_info("mass_storage IN/%s OUT/%s\n", fsg->bulk_in->name,
-			fsg->bulk_out->name);
 
 	return 0;
 
@@ -3438,13 +3389,6 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 	if (rc)
 		goto release_buffers;
 
-#ifdef CONFIG_CHIP_USB_CONFIGFS
-	if (create_mass_storage_device(&opts->func_inst)) {
-		rc = -ENODEV;
-		goto remove_luns;
-	}
-#endif
-
 	opts->lun0.lun = opts->common->luns[0];
 	opts->lun0.lun_id = 0;
 
@@ -3455,10 +3399,6 @@ static struct usb_function_instance *fsg_alloc_inst(void)
 
 	return &opts->func_inst;
 
-#ifdef CONFIG_CHIP_USB_CONFIGFS
-remove_luns:
-	fsg_common_remove_luns(opts->common);
-#endif
 release_buffers:
 	fsg_common_free_buffers(opts->common);
 release_opts:
