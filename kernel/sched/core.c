@@ -1644,31 +1644,8 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	if (cpumask_equal(&p->cpus_allowed, new_mask))
 		goto out;
 
-#ifdef CONFIG_CPU_ISOLATION_STRICT
-	cpumask_andnot(&allowed_mask, new_mask, cpu_isolated_mask);
-	cpumask_and(&allowed_mask, &allowed_mask, cpu_valid_mask);
-
-	if (cpumask_empty(&allowed_mask)) {
-		cpumask_and(&allowed_mask, cpu_valid_mask, new_mask);
-		if (cpumask_empty(&allowed_mask)) {
-			ret = -EINVAL;
-			goto out;
-		}
-	}
-
-	do_set_cpus_allowed(p, new_mask);
-
-	/* Can the task run on the task's current CPU? If so, we're done */
-	if (cpumask_test_cpu(task_cpu(p), &allowed_mask))
-		goto out;
-
-#ifdef CONFIG_HISI_EAS_SCHED
-	dest_cpu = select_allowed_cpu(p, &allowed_mask);
-#else
-	dest_cpu = cpumask_any(&allowed_mask);
-#endif
-#else
-	if (!cpumask_intersects(new_mask, cpu_valid_mask)) {
+	dest_cpu = cpumask_any_and(cpu_valid_mask, new_mask);
+	if (dest_cpu >= nr_cpu_ids) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1689,13 +1666,6 @@ static int __set_cpus_allowed_ptr(struct task_struct *p,
 	if (cpumask_test_cpu(task_cpu(p), new_mask))
 		goto out;
 
-#ifdef CONFIG_HISI_EAS_SCHED
-	cpumask_and(&allowed_mask, cpu_valid_mask, new_mask);
-	dest_cpu = select_allowed_cpu(p, &allowed_mask);
-#else
-	dest_cpu = cpumask_any_and(cpu_valid_mask, new_mask);
-#endif
-#endif
 	if (task_running(rq, p) || p->state == TASK_WAKING) {
 		struct migration_arg arg = { p, dest_cpu };
 		/* Need help from migration thread: drop lock and wait. */
