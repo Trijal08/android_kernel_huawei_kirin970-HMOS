@@ -1977,10 +1977,9 @@ void dw_mci_print_error(struct dw_mci *host, struct mmc_command *cmd)
 	}
 }
 
-static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd)
+static int dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd)
 {
 	u32 status = host->cmd_status;
-	struct dw_mci_slot *slot = host->cur_slot;
 
 	host->cmd_status = 0;
 
@@ -1999,39 +1998,17 @@ static void dw_mci_command_complete(struct dw_mci *host, struct mmc_command *cmd
 		}
 	}
 
-	if (status & SDMMC_INT_RTO) {
-		if ((host->hw_mmc_id == DWMMC_SD_ID) &&
-		    (cmd->opcode == MMC_SEND_TUNING_BLOCK))
-			udelay(1000);
-
-		if (!(slot && slot->sdio_wakelog_switch))
-		{
-                                dw_mci_print_error(host,cmd);
-		}
+	if (status & SDMMC_INT_RTO)
 		cmd->error = -ETIMEDOUT;
-	} else if ((cmd->flags & MMC_RSP_CRC) && (status & SDMMC_INT_RCRC)) {
-		if ((host->hw_mmc_id == DWMMC_SD_ID) &&
-		    (cmd->opcode == MMC_SEND_TUNING_BLOCK))
-			udelay(1000);
-
-		dev_err(host->dev, "CMD %d(arg=0x%x) REP CRC error\n",
-			cmd->opcode, cmd->arg);
+	else if ((cmd->flags & MMC_RSP_CRC) && (status & SDMMC_INT_RCRC))
 		cmd->error = -EILSEQ;
-	} else if (status & SDMMC_INT_RESP_ERR) {
-		if ((host->hw_mmc_id == DWMMC_SD_ID) &&
-		    (cmd->opcode == MMC_SEND_TUNING_BLOCK))
-			udelay(1000);
-
-		dev_err(host->dev, "CMD %d(arg=0x%x) REP error\n", cmd->opcode,
-			cmd->arg);
+	else if (status & SDMMC_INT_RESP_ERR)
 		cmd->error = -EIO;
-	} else
+	else
 		cmd->error = 0;
 
+	return cmd->error;
 }
-/*lint -restore*/
-
-
 
 static void dw_mci_set_drto(struct dw_mci *host)
 {
@@ -2157,6 +2134,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 	enum dw_mci_state prev_state;
 	u32 status;
 	int ret = 0;
+	unsigned int err;
 
 	spin_lock(&host->lock);
 
@@ -2190,7 +2168,7 @@ static void dw_mci_tasklet_func(unsigned long priv)
 			cmd = host->cmd;
 			host->cmd = NULL;
 			set_bit(EVENT_CMD_COMPLETE, &host->completed_events);
-			dw_mci_command_complete(host, cmd);
+			err = dw_mci_command_complete(host, cmd);
 			if (cmd == host->mrq->sbc && !cmd->error) {
 				prev_state = state = STATE_SENDING_CMD;
 				__dw_mci_start_request(host, host->cur_slot,
