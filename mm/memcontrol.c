@@ -913,7 +913,7 @@ static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
 
 	for_each_node(nid) {
 		mz = mem_cgroup_nodeinfo(from, nid);
-		for (i = 0; i <= priority; i++) {
+		for (i = 0; i <= DEF_PRIORITY; i++) {
 			iter = &mz->iter[i];
 			cmpxchg(&iter->position,
 				dead_memcg, NULL);
