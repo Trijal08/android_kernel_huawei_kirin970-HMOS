@@ -548,6 +548,11 @@ ifneq ($(GCC_TOOLCHAIN),)
 #CLANG_GCC_TC	:= --gcc-toolchain=$(GCC_TOOLCHAIN)
 CLANG_GCC_TC	:= --gcc-toolchain=$(shell perl -e 'use File::Spec; print File::Spec->abs2rel(@ARGV) . "\n"' $(GCC_TOOLCHAIN) $(CURDIR))
 endif
+
+# Huawei specific
+KBUILD_CFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC)
+KBUILD_AFLAGS += $(CLANG_TARGET) $(CLANG_GCC_TC)
+
 CLANG_FLAGS	+= -no-integrated-as
 CLANG_FLAGS	+= -Werror=unknown-warning-option
 KBUILD_CFLAGS	+= $(CLANG_FLAGS)
