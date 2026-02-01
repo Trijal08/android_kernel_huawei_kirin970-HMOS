@@ -2397,9 +2397,7 @@ do_more:
 					GET_SEGNO(sbi, range.start));
 #else
 	ret = f2fs_gc(sbi, range.sync, true, GET_SEGNO(sbi, range.start));
-#endif
-	current->flags &= (~PF_MUTEX_GC);
-	range.start += sbi->blocks_per_seg;
+	range.start += BLKS_PER_SEC(sbi);
 	if (range.start <= end)
 		goto do_more;
 out:

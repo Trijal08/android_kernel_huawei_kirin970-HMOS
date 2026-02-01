@@ -465,8 +465,7 @@ void thermal_zone_device_set_polling(struct thermal_zone_device *tz,
 		mod_delayed_work(system_freezable_wq, &tz->poll_queue,
 				 msecs_to_jiffies(delay));
 	else
-		cancel_delayed_work_sync(&tz->poll_queue);
-#endif
+		cancel_delayed_work(&tz->poll_queue);
 }
 EXPORT_SYMBOL(thermal_zone_device_set_polling);
 
