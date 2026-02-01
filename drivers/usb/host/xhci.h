@@ -1850,6 +1850,9 @@ struct xhci_hcd {
 #define XHCI_WARM_RESET_AFTER_INIT	(1ULL << 62)
 #define XHCI_DELAY_CTRL_DATA_STAGE	(1ULL << 63)
 
+#define XHCI_RESET_PLL_ON_DISCONNECT	BIT_ULL(34)
+#define XHCI_SNPS_BROKEN_SUSPEND    BIT_ULL(35)
+
 	unsigned int		num_active_eps;
 	unsigned int		limit_active_eps;
 	/* There are two roothubs to keep track of bus suspend info for */
