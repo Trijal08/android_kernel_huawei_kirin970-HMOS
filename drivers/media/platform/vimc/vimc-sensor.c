@@ -199,11 +199,8 @@ static const struct v4l2_subdev_pad_ops vimc_sen_pad_ops = {
 
 static int vimc_sen_tpg_thread(void *data)
 {
-	struct vimc_sen_device *vsen = data;
-	unsigned int i;
-
-	set_freezable();
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	struct vimc_sen_device *vsen = container_of(ved, struct vimc_sen_device,
+						    ved);
 
 	for (;;) {
 		try_to_freeze();
