@@ -326,6 +326,9 @@ void arm64_set_ssbd_mitigation(bool state)
 		return;
 	}
 
+#ifdef CONFIG_ARCH_HISI
+	switch (PSCI_CONDUIT_SMC) {
+#else
 	switch (psci_ops.conduit) {
 #endif
 	case PSCI_CONDUIT_HVC:
@@ -373,9 +376,10 @@ static bool has_ssbd_mitigation(const struct arm64_cpu_capabilities *entry,
 		return false;
 	}
 
-	switch (psci_ops.conduit) {
-#else
+#ifdef CONFIG_ARCH_HISI
 	switch (PSCI_CONDUIT_SMC) {
+#else
+	switch (psci_ops.conduit) {
 #endif
 	case PSCI_CONDUIT_HVC:
 		arm_smccc_1_1_hvc(ARM_SMCCC_ARCH_FEATURES_FUNC_ID,

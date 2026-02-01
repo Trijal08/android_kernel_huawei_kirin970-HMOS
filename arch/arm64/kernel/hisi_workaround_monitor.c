@@ -93,8 +93,8 @@ static bool is_enyo(int cpu)
 	struct cpuinfo_arm64 *info = &per_cpu(cpu_data, cpu);
 	u32 midr = info->reg_midr;
 
-	return MIDR_IMPLEMENTOR(midr) == ARM_CPU_IMP_HISI &&
-	       MIDR_PARTNUM(midr) == ARM_CPU_PART_ENYO;
+	return MIDR_IMPLEMENTOR(midr) == ARM_CPU_IMP_ARM &&
+	       MIDR_PARTNUM(midr) == ARM_CPU_PART_NEOVERSE_V1;
 }
 
 static void __init wa2_monitor_init(void)
