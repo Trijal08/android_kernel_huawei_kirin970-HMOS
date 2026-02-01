@@ -28,7 +28,6 @@
 #include <linux/limits.h>
 #include <linux/property.h>
 #include <linux/kmemleak.h>
-#include <linux/types.h>
 
 #include "base.h"
 #include "power/power.h"
