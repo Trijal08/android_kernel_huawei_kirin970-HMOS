@@ -95,6 +95,19 @@ struct gadget_info {
 	bool use_os_desc;
 	char b_vendor_code;
 	char qw_sign[OS_STRING_QW_SIGN_LEN];
+#ifdef CONFIG_USB_CONFIGFS_UEVENT
+	bool connected;
+	bool sw_connected;
+	struct work_struct work;
+
+	/* for usb cable unplugged while sys.usb.config=none */
+	struct notifier_block cable_disconnect_nb;
+
+#ifdef CONFIG_USB_MIRRORLINK_SUPPORT
+	struct work_struct mirrorlink_work;
+#endif
+	struct device *dev;
+#endif
 	spinlock_t spinlock;
 	bool unbind;
 };
