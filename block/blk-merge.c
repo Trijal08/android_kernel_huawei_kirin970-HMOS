@@ -804,7 +804,9 @@ static struct request *attempt_merge(struct request_queue *q,
 
 	if (!blk_discard_mergable(req))
 		elv_merge_requests(q, req, next);
-	}
+#ifdef CONFIG_MAS_BLK
+		mas_blk_bio_merge_done(q, req, next);
+#endif
 
 	/*
 	 * 'next' is going away, so update stats accordingly
