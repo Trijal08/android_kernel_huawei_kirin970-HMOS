@@ -16,6 +16,7 @@
  *
  */
 
+#include <linux/dmi.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -27,9 +28,23 @@
 #include <linux/iio/machine.h>
 #include <linux/iio/driver.h>
 
-#define AXP288_ADC_EN_MASK		0xF1
-#define AXP288_ADC_TS_PIN_GPADC		0xF2
-#define AXP288_ADC_TS_PIN_ON		0xF3
+/*
+ * This mask enables all ADCs except for the battery temp-sensor (TS), that is
+ * left as-is to avoid breaking charging on devices without a temp-sensor.
+ */
+#define AXP288_ADC_EN_MASK				0xF0
+#define AXP288_ADC_TS_ENABLE				0x01
+
+#define AXP288_ADC_TS_BIAS_MASK				GENMASK(5, 4)
+#define AXP288_ADC_TS_BIAS_20UA				(0 << 4)
+#define AXP288_ADC_TS_BIAS_40UA				(1 << 4)
+#define AXP288_ADC_TS_BIAS_60UA				(2 << 4)
+#define AXP288_ADC_TS_BIAS_80UA				(3 << 4)
+#define AXP288_ADC_TS_CURRENT_ON_OFF_MASK		GENMASK(1, 0)
+#define AXP288_ADC_TS_CURRENT_OFF			(0 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_WHEN_CHARGING		(1 << 0)
+#define AXP288_ADC_TS_CURRENT_ON_ONDEMAND		(2 << 0)
+#define AXP288_ADC_TS_CURRENT_ON			(3 << 0)
 
 enum axp288_adc_id {
 	AXP288_ADC_TS,
@@ -172,13 +187,61 @@ static int axp288_adc_read_raw(struct iio_dev *indio_dev,
 	return ret;
 }
 
-static int axp288_adc_set_state(struct regmap *regmap)
-{
-	/* ADC should be always enabled for internal FG to function */
-	if (regmap_write(regmap, AXP288_ADC_TS_PIN_CTRL, AXP288_ADC_TS_PIN_ON))
-		return -EIO;
+/*
+ * We rely on the machine's firmware to correctly setup the TS pin bias current
+ * at boot. This lists systems with broken fw where we need to set it ourselves.
+ */
+static const struct dmi_system_id axp288_adc_ts_bias_override[] = {
+	{
+		/* Lenovo Ideapad 100S (11 inch) */
+		.matches = {
+		  DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		  DMI_MATCH(DMI_PRODUCT_VERSION, "Lenovo ideapad 100S-11IBY"),
+		},
+		.driver_data = (void *)(uintptr_t)AXP288_ADC_TS_BIAS_80UA,
+	},
+	{}
+};
 
-	return regmap_write(regmap, AXP20X_ADC_EN1, AXP288_ADC_EN_MASK);
+static int axp288_adc_initialize(struct axp288_adc_info *info)
+{
+	const struct dmi_system_id *bias_override;
+	int ret, adc_enable_val;
+
+	bias_override = dmi_first_match(axp288_adc_ts_bias_override);
+	if (bias_override) {
+		ret = regmap_update_bits(info->regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_BIAS_MASK,
+					 (uintptr_t)bias_override->driver_data);
+		if (ret)
+			return ret;
+	}
+
+	/*
+	 * Determine if the TS pin is enabled and set the TS current-source
+	 * accordingly.
+	 */
+	ret = regmap_read(info->regmap, AXP20X_ADC_EN1, &adc_enable_val);
+	if (ret)
+		return ret;
+
+	if (adc_enable_val & AXP288_ADC_TS_ENABLE) {
+		info->ts_enabled = true;
+		ret = regmap_update_bits(info->regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+					 AXP288_ADC_TS_CURRENT_ON);
+	} else {
+		info->ts_enabled = false;
+		ret = regmap_update_bits(info->regmap, AXP288_ADC_TS_PIN_CTRL,
+					 AXP288_ADC_TS_CURRENT_ON_OFF_MASK,
+					 AXP288_ADC_TS_CURRENT_OFF);
+	}
+	if (ret)
+		return ret;
+
+	/* Turn on the ADC for all channels except TS, leave TS as is */
+	return regmap_update_bits(info->regmap, AXP20X_ADC_EN1,
+				  AXP288_ADC_EN_MASK, AXP288_ADC_EN_MASK);
 }
 
 static const struct iio_info axp288_adc_iio_info = {
