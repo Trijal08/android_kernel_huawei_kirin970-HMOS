@@ -74,6 +74,9 @@ static void request_key_auth_describe(const struct key *key,
 	if (!rka)
 		return;
 
+	if (!rka)
+		return;
+
 	seq_puts(m, "key:");
 	seq_puts(m, key->description);
 	if (key_is_positive(key))
