@@ -1653,14 +1653,6 @@ static inline void ufshcd_vops_setup_task_mgmt(struct ufs_hba *hba,
 		hba->vops->setup_task_mgmt(hba, tag, tm_function);
 }
 
-static inline void ufshcd_vops_hibern8_notify(struct ufs_hba *hba,
-											  enum uic_cmd_dme cmd,
-											  enum ufs_notify_change_status status)
-{
-	if (hba->vops && hba->vops->hibern8_notify)
-		return hba->vops->hibern8_notify(hba, cmd, status);
-}
-
 static inline int ufshcd_vops_apply_dev_quirks(struct ufs_hba *hba)
 {
 	if (hba->vops && hba->vops->apply_dev_quirks)
