@@ -32,7 +32,7 @@ start_time_sum=$(date +%s)
 
 git submodule update --init --recursive
 
-make ARCH=arm64 O=out CC="ccache clang" kirin970_defconfig ksun_sus.config nconfig
+make ARCH=arm64 O=out CC="ccache clang" kirin970_halium_defconfig nconfig
 make ARCH=arm64 O=out CC="ccache clang" -j$(nproc --all) KCFLAGS="-fno-builtin-wcslen -Wno-error=incompatible-pointer-types -Wno-error=strict-prototypes -Wno-error=int-conversion -Wno-error=implicit-int"
 
 end_time_sum=$(date +%s)
